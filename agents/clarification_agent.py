@@ -1,27 +1,12 @@
 def clarify_question(query, df):
 
-    """
-    Detect ambiguous questions
-    """
-
     columns = [c.lower() for c in df.columns]
+    matches = [c for c in columns if c in query.lower()]
 
-    query_lower = query.lower()
+    if len(matches) == 0:
+        return "Please specify which metric you want to analyze."
 
-    mentioned_columns = []
-
-    for col in columns:
-
-        if col in query_lower:
-
-            mentioned_columns.append(col)
-
-    if len(mentioned_columns) == 0:
-
-        return "Your question is unclear. Please specify a metric or column from the dataset."
-
-    if len(mentioned_columns) > 1:
-
-        return "Your question references multiple metrics. Please specify which one you want to analyze."
+    if len(matches) > 1:
+        return "Multiple metrics detected. Please clarify."
 
     return None

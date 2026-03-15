@@ -5,11 +5,13 @@ llm = Ollama(model="llama3")
 
 def run_tech_agent(query, context):
 
-    schema = context["schema"]
-    insights = context["insights"]
-    root_cause = context["root_cause"]
+    try:
 
-    prompt = f"""
+        schema = context.get("schema", "")
+        insights = context.get("insights", "")
+        root_cause = context.get("root_cause", "")
+
+        prompt = f"""
 You are a SENIOR DATA SCIENTIST answering a technical manager.
 
 Dataset Schema:
@@ -39,6 +41,24 @@ Structure response:
 3. Technical Recommendation
 """
 
-    response = llm.invoke(prompt)
+        response = llm.invoke(prompt)
 
-    return response
+        return {
+            "status": "success",
+            "message": None,
+            "data": response,
+            "suggestions": []
+        }
+
+    except Exception:
+
+        return {
+            "status": "warning",
+            "message": "Technical analysis failed",
+            "data": None,
+            "suggestions": [
+                "Ask about correlations",
+                "Ask which variables influence the outcome",
+                "Ask what further analysis can be performed"
+            ]
+        }

@@ -1,162 +1,116 @@
 import streamlit as st
 import pandas as pd
 
-# analytics
 from analytics.analysis_pipeline import run_analysis
-
-# agents
 from agents.persona_router import route_persona
-from agents.clarification_agent import clarify_question
-
-# semantic layer
 from semantic_layer.business_mapper import map_business_terms
-
-# guardrails
+from agents.clarification_agent import clarify_question
 from guardrails.guardrail_controller import (
     run_input_guardrail,
     run_context_guardrail,
     run_output_guardrail
 )
 
-st.set_page_config(
-    page_title="AI Analyst",
-    layout="wide"
-)
+st.set_page_config(page_title="AI Excel Analyst", layout="wide")
 
-st.title("AI Analyst")
-st.caption("Conversational analytics with guardrails")
-
-# ------------------------------
-# Persona Selection
-# ------------------------------
+st.title("AI Excel Analyst")
 
 profile = st.selectbox(
-    "Select User Profile",
-    [
-        "Non-technical Manager",
-        "Technical Manager"
-    ]
+    "User Profile",
+    ["Non-technical Manager", "Technical Manager"]
 )
 
-# ------------------------------
-# File Upload
-# ------------------------------
-
-uploaded_file = st.file_uploader(
-    "Upload Excel Dataset",
-    type=["xlsx"]
-)
+uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx"])
 
 if uploaded_file:
 
-    df = pd.read_excel(uploaded_file)
+    try:
+        df = pd.read_excel(uploaded_file)
+    except Exception:
+        st.error("Unable to read Excel file.")
+        st.stop()
 
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    st.write("Columns:", list(df.columns))
-
-    # ------------------------------
-    # Chat Input
-    # ------------------------------
-
-    query = st.chat_input("Ask a question about your data")
+    query = st.chat_input("Ask a question about your dataset")
 
     if query:
 
-        # ------------------------------
-        # Semantic Business Mapping
-        # ------------------------------
-
         query = map_business_terms(query)
 
-        # ------------------------------
-        # Guardrail 1: Input Validation
-        # ------------------------------
+        input_result = run_input_guardrail(query, df)
 
-        valid, message = run_input_guardrail(query, df)
+        if input_result["status"] != "success":
 
-        if not valid:
+            st.warning(input_result["message"])
 
-            st.error(message)
-            st.stop()
+            for s in input_result["suggestions"]:
+                st.button(s)
 
-        # ------------------------------
-        # Clarification Agent
-        # ------------------------------
+        else:
 
-        clarification = clarify_question(query, df)
+            clarification = clarify_question(query, df)
 
-        if clarification:
+            if clarification:
 
-            st.warning(clarification)
-            st.stop()
+                st.warning(clarification)
 
-        # ------------------------------
-        # Run Analytics Engine
-        # ------------------------------
+            else:
 
-        insights, root_cause, chart = run_analysis(df)
+                analysis = run_analysis(df)
 
-        # ------------------------------
-        # Guardrail 2: Context Protection
-        # ------------------------------
+                if analysis["status"] != "success":
 
-        context = run_context_guardrail(
-            df,
-            insights,
-            root_cause
-        )
+                    st.warning(analysis["message"])
 
-        # ------------------------------
-        # Persona Routing
-        # ------------------------------
+                else:
 
-        response = route_persona(
-            profile,
-            query,
-            context
-        )
+                    insights = analysis["data"]["insights"]
+                    root_cause = analysis["data"]["root_cause"]
+                    chart = analysis["data"]["chart"]
 
-        # ------------------------------
-        # Guardrail 3: Output Validation
-        # ------------------------------
+                    context = run_context_guardrail(
+                        df,
+                        insights,
+                        root_cause
+                    )["data"]
 
-        valid, message = run_output_guardrail(
-            response,
-            df
-        )
+                    persona_result = route_persona(
+                        profile,
+                        query,
+                        context
+                    )
 
-        if not valid:
+                    output_result = run_output_guardrail(
+                        persona_result["data"],
+                        df
+                    )
 
-            st.warning("Output guardrail triggered")
-            st.write(message)
-            st.stop()
+                    if output_result["status"] != "success":
 
-        # ------------------------------
-        # Display Results
-        # ------------------------------
+                        st.warning(output_result["message"])
 
-        col1, col2 = st.columns(2)
+                    else:
 
-        with col1:
+                        col1, col2 = st.columns(2)
 
-            st.subheader("Automatic Insights")
+                        with col1:
 
-            for insight in insights:
-                st.write("- ", insight)
+                            st.subheader("Insights")
 
-            st.subheader("Root Cause Drivers")
+                            for i in insights:
+                                st.write("-", i)
 
-            st.json(root_cause)
+                            st.subheader("Root Cause Drivers")
 
-        with col2:
+                            st.json(root_cause)
 
-            st.subheader("Recommended Chart")
+                        with col2:
 
-            if chart:
-                st.plotly_chart(chart, use_container_width=True)
+                            if chart:
+                                st.plotly_chart(chart)
 
-        st.subheader("AI Explanation")
+                        st.subheader("AI Explanation")
 
-        st.write(response)
+                        st.write(output_result["data"])
