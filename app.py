@@ -1,22 +1,14 @@
 import streamlit as st
 import pandas as pd
 
-from analytics.analysis_pipeline import run_analysis
-from agents.persona_router import route_persona
-from semantic_layer.business_mapper import map_business_terms
-from agents.clarification_agent import clarify_question
-from guardrails.guardrail_controller import (
-    run_input_guardrail,
-    run_context_guardrail,
-    run_output_guardrail
-)
+from core.pipeline import run_ai_pipeline
 
-st.set_page_config(page_title="AI Excel Analyst", layout="wide")
+st.set_page_config(page_title="AI Excel Analyst")
 
 st.title("AI Excel Analyst")
 
-profile = st.selectbox(
-    "User Profile",
+persona = st.selectbox(
+    "Select User Type",
     ["Non-technical Manager", "Technical Manager"]
 )
 
@@ -26,97 +18,39 @@ if uploaded_file:
 
     try:
         df = pd.read_excel(uploaded_file)
-    except Exception:
-        st.error("Unable to read Excel file.")
+    except:
+        st.error("Unable to read Excel file")
         st.stop()
 
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    query = st.chat_input("Ask a question about your dataset")
+    query = st.chat_input("Ask a question about the dataset")
 
     if query:
 
-        query = map_business_terms(query)
+        result = run_ai_pipeline(query, df, persona)
 
-        input_result = run_input_guardrail(query, df)
+        if result["status"] != "success":
+            st.warning(result["message"])
 
-        if input_result["status"] != "success":
+            if result["suggestions"]:
+                st.write("Try these:")
+                for s in result["suggestions"]:
+                    st.write("-", s)
 
-            st.warning(input_result["message"])
+        if result["insights"]:
+            st.subheader("Insights")
+            for i in result["insights"]:
+                st.write("-", i)
 
-            for s in input_result["suggestions"]:
-                st.button(s)
+        if result["root_cause"]:
+            st.subheader("Root Cause Drivers")
+            st.json(result["root_cause"])
 
-        else:
+        if result["chart"]:
+            st.plotly_chart(result["chart"])
 
-            clarification = clarify_question(query, df)
-
-            if clarification:
-
-                st.warning(clarification)
-
-                for col in df.columns[:5]:
-
-                    if st.button(f"Analyze {col}"):
-
-                        query = f"Analyze {col}"
-
-            else:
-
-                analysis = run_analysis(df)
-
-                if analysis["status"] != "success":
-
-                    st.warning(analysis["message"])
-
-                else:
-
-                    insights = analysis["data"]["insights"]
-                    root_cause = analysis["data"]["root_cause"]
-                    chart = analysis["data"]["chart"]
-
-                    context = run_context_guardrail(
-                        df,
-                        insights,
-                        root_cause
-                    )["data"]
-
-                    persona_result = route_persona(
-                        profile,
-                        query,
-                        context
-                    )
-
-                    output_result = run_output_guardrail(
-                        persona_result["data"],
-                        df
-                    )
-
-                    if output_result["status"] != "success":
-
-                        st.warning(output_result["message"])
-
-                    else:
-
-                        col1, col2 = st.columns(2)
-
-                        with col1:
-
-                            st.subheader("Insights")
-
-                            for i in insights:
-                                st.write("-", i)
-
-                            st.subheader("Root Cause Drivers")
-
-                            st.json(root_cause)
-
-                        with col2:
-
-                            if chart:
-                                st.plotly_chart(chart)
-
-                        st.subheader("AI Explanation")
-
-                        st.write(output_result["data"])
+        if result["response"]:
+            st.subheader("AI Explanation")
+            st.write(result["response"])
