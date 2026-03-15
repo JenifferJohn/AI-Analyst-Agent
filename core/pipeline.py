@@ -13,13 +13,12 @@ from core.intent_classifier import classify_intent
 def run_ai_pipeline(query, df, persona):
 
     result = {
-        "status":"success",
-        "message":None,
-        "insights":[],
-        "root_cause":{},
-        "chart":None,
-        "response":None,
-        "suggestions":[]
+        "status": "success",
+        "message": None,
+        "insights": [],
+        "root_cause": {},
+        "chart": None,
+        "response": None
     }
 
     query = map_business_terms(query)
@@ -27,40 +26,34 @@ def run_ai_pipeline(query, df, persona):
     clarification = clarify_question(query, df)
 
     if clarification:
-        result["status"]="warning"
-        result["message"]=clarification
-        result["suggestions"]=[f"Analyze {df.columns[0]}"]
-        return result
+        result["message"] = clarification
 
     guard = run_input_guardrail(query, df)
 
-    if guard["status"]!="success":
-        result["status"]="warning"
-        result["message"]=guard["message"]
-        result["suggestions"]=guard["suggestions"]
-        return result
+    if guard["status"] != "success":
+        result["message"] = guard["message"]
 
     intent = classify_intent(query)
 
     analysis = run_analysis(df)
 
-    if analysis["status"]=="success":
+    if analysis["status"] == "success":
 
         data = analysis["data"]
 
-        if intent=="chart":
-            result["chart"]=data["chart"]
+        insights = data["insights"]
+        root_cause = data["root_cause"]
+        chart = data["chart"]
 
-        elif intent=="root_cause":
-            result["root_cause"]=data["root_cause"]
+        if intent == "chart":
+            insights = []
 
-        elif intent=="insight":
-            result["insights"]=data["insights"]
+        elif intent == "root_cause":
+            chart = None
 
-        else:
-            result["insights"]=data["insights"]
-            result["root_cause"]=data["root_cause"]
-            result["chart"]=data["chart"]
+        result["insights"] = insights
+        result["root_cause"] = root_cause
+        result["chart"] = chart
 
     context = run_context_guardrail(
         df,
@@ -75,7 +68,7 @@ def run_ai_pipeline(query, df, persona):
         df
     )
 
-    if output["status"]=="success":
-        result["response"]=output["data"]
+    if output["status"] == "success":
+        result["response"] = output["data"]
 
     return result

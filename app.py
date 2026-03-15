@@ -8,39 +8,49 @@ st.set_page_config(page_title="AI Analyst")
 st.title("AI Analyst")
 
 persona = st.selectbox(
-    "Select User Type",
+    "User Type",
     ["Non-technical Manager", "Technical Manager"]
 )
 
-uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload Excel", type=["xlsx"])
 
 if uploaded_file:
 
     try:
         df = pd.read_excel(uploaded_file)
     except:
-        st.error("Unable to read Excel file")
+        st.error("Could not read Excel file")
         st.stop()
 
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    query = st.chat_input("Ask a question about the dataset")
+    st.write("Quick actions")
+
+    c1, c2, c3 = st.columns(3)
+
+    if c1.button("Generate Insights"):
+        query = "What insights exist in this dataset?"
+
+    elif c2.button("Show Trends"):
+        query = "Show trends in the dataset"
+
+    elif c3.button("Find Root Causes"):
+        query = "What factors influence performance?"
+
+    else:
+        query = st.chat_input("Ask a question about your data")
 
     if query:
 
         result = run_ai_pipeline(query, df, persona)
 
-        if result["status"] != "success":
+        if result["message"]:
             st.warning(result["message"])
-
-            if result["suggestions"]:
-                st.write("Try these:")
-                for s in result["suggestions"]:
-                    st.write("-", s)
 
         if result["insights"]:
             st.subheader("Insights")
+
             for i in result["insights"]:
                 st.write("-", i)
 
@@ -49,8 +59,22 @@ if uploaded_file:
             st.json(result["root_cause"])
 
         if result["chart"]:
+            st.subheader("Visualization")
             st.plotly_chart(result["chart"])
 
         if result["response"]:
             st.subheader("AI Explanation")
             st.write(result["response"])
+
+    st.write("Suggested Questions")
+
+    suggestions = [
+        "What insights exist in the dataset?",
+        "Show sales trend",
+        "What drives sales performance?",
+        "Explain dataset patterns"
+    ]
+
+    for s in suggestions:
+        if st.button(s):
+            run_ai_pipeline(s, df, persona)
