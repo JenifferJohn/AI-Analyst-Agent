@@ -19,11 +19,11 @@ from guardrails.guardrail_controller import (
 )
 
 st.set_page_config(
-    page_title="AI Excel Analyst",
+    page_title="AI Analyst",
     layout="wide"
 )
 
-st.title("AI Excel Analyst")
+st.title("AI Analyst")
 st.caption("Conversational analytics with guardrails")
 
 # ------------------------------
