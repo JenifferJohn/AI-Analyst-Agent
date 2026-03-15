@@ -3,9 +3,9 @@ import pandas as pd
 
 from core.pipeline import run_ai_pipeline
 
-st.set_page_config(page_title="AI Excel Analyst")
+st.set_page_config(page_title="AI Analyst")
 
-st.title("AI Excel Analyst")
+st.title("AI Analyst")
 
 persona = st.selectbox(
     "Select User Type",
