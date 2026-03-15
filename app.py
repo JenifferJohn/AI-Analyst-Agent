@@ -56,6 +56,12 @@ if uploaded_file:
 
                 st.warning(clarification)
 
+                for col in df.columns[:5]:
+
+                    if st.button(f"Analyze {col}"):
+
+                        query = f"Analyze {col}"
+
             else:
 
                 analysis = run_analysis(df)
