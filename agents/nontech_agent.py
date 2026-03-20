@@ -1,6 +1,6 @@
 from langchain_community.llms import Ollama
 
-llm = Ollama(model="llama3")
+llm = Ollama(model="mistral-7b-instruct-v0.1.Q4_0.gguf")
 
 
 def run_nontech_agent(query, context):
